@@ -1,8 +1,7 @@
 import React from 'react';
-import {Row} from "reactstrap";
+import {Alert, Row} from "reactstrap";
 import Mqtt from 'mqtt';
 import {PublishForm} from "./components/PublishForm";
-import {PublishedMessageItem} from "./components/PublishedMessageItem";
 
 
 let client;
@@ -12,7 +11,7 @@ export default class App extends React.Component {
     state = {
         newTopic: '',
         newText: '',
-        messages: [ ]
+        isPublished: false
     };
 
 
@@ -32,20 +31,8 @@ export default class App extends React.Component {
         client.on('connect', function () {
             console.log('connected with mqtt server ' + SERVER_URL);
         });
-
-        client.on('message', this.messageHandler);
     }
 
-    messageHandler = (topic, message) => {
-        console.log("message received over topic '%s'", topic);
-
-        let response = JSON.parse(message);
-        response.time = new Date().toLocaleTimeString();
-
-        this.setState(state => ({
-            messages: [...state.messages, response]
-        }));
-    };
 
     render() {
         return (
@@ -55,16 +42,12 @@ export default class App extends React.Component {
                     <PublishForm publishHandler={this.publishToTopic}
                                    topicHandler={e => this.topicHandler(e)}
                                    textHandler={e => this.textHandler(e)}
-
                     />
-                </Row>
 
-                <Row>
-                    {this.state.messages.map((messageItem, i) =>
-                        <PublishedMessageItem key={i}
-                                              messageItem={messageItem}
-                        />
-                    )}
+                    <Alert color="success" isOpen={this.state.isPublished} toggle={this.onCloseAlert}>
+                        Message published
+                    </Alert>
+
                 </Row>
             </div>
         )
@@ -75,12 +58,18 @@ export default class App extends React.Component {
             newTopic: topic
         })
     };
+
     textHandler = (text) => {
         this.setState({
             newText: text
         })
     };
 
+    onCloseAlert = () => {
+        this.setState({
+            isPublished: false
+        })
+    };
 
     publishToTopic = () => {
 
@@ -92,20 +81,18 @@ export default class App extends React.Component {
 
             const mqttMessage = JSON.stringify(  {"topic": topic, "text": text} );
 
-            client.subscribe(topic);
-
             client.publish(topic, mqttMessage);
 
             console.log("published to topic: " + topic + " with text: " + text)
+
+            this.setState({
+                isPublished: true
+            })
 
         } else {
             console.log("No topic or text");
         }
     };
-
-
-
-
 
     componentWillUnmount() {
         client.end(true);
